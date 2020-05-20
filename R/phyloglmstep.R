@@ -3,15 +3,16 @@
 ################################################
 
 phyloglmstep <- function(formula, starting.formula = NULL, data=list(), phy, 
-                      model=c("BM","OUrandomRoot","OUfixedRoot","lambda","kappa","delta","EB","trend"),
+                      method = c("logistic_MPLE","logistic_IG10"),
                       direction = c("both", "backward", "forward"), trace = 2,
-                      lower.bound=NULL, upper.bound=NULL, starting.value=NULL,
+                      btol = 10, log.alpha.bound = 4, start.beta=NULL, 
+                      start.alpha=NULL, boot = 0, full.matrix = TRUE,
                       k=2, ...) 
 {
     ## initialize  
-    model = match.arg(model)	
+    method = match.arg(method)	
     direction = match.arg(direction)  
-    fit.full = phylolm(formula, data, phy, model, lower.bound, upper.bound, starting.value, ...)
+    fit.full = phyloglm(formula, data, phy, method, btol, log.alpha.bound, start.beta, start.alpha, boot, full.matrix, ...)
     response = fit.full$formula[[2]] # name of the response
     covariates = attr(terms(formula), "term.labels") # name of the covariates
     
@@ -30,8 +31,7 @@ phyloglmstep <- function(formula, starting.formula = NULL, data=list(), phy,
     
     ## fit phylolm
     fit <- function(plm) {
-        return(phylolm(create.formula(plm), data, phy, model, 
-                       lower.bound, upper.bound, starting.value, ...))
+        return(phyloglm(create.formula(plm), data, phy, method, btol, log.alpha.bound, start.beta, start.alpha, boot, full.matrix, ...))
     }
     
     ## plm.current is a binary vector of length p
@@ -46,7 +46,7 @@ phyloglmstep <- function(formula, starting.formula = NULL, data=list(), phy,
     }
     
     if (!is.null(starting.formula)) {
-        fit.current = phylolm(starting.formula, data, phy, model, lower.bound, upper.bound, starting.value, ...)
+        fit.current = phylolm(starting.formula, data, phy, method, btol, log.alpha.bound, start.beta, start.alpha, boot, full.matrix, ...)
         covariates.current = attr(terms(starting.formula), "term.labels")
         plm.current = rep(0,p)
         position = match(covariates.current,covariates)
