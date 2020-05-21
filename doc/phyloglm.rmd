@@ -1,0 +1,160 @@
+---
+title: "PhyloGLM of secondary woodiness"
+author: "Rutger Vos (@rvosa)"
+date: "21-5-2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## Loading data
+
+A data frame of OMI-transformed GIS values and a classification into secondary
+woodiness (or not) is available in the '../data' folder, next to a pre-processed
+version of the ALLMB tree of Smith & Brown. Here we load these into the 
+environment:
+
+```{r data}
+library(ape)
+load( file = '../data/woodyData.rda' )
+load( file = '../data/woodyTree.rda' )
+plot(tree_woody, show.tip.label = F)
+```
+
+## Variable selection
+
+The data frame has 42 columns, one of which is a binary state (secondary woody),
+the others are continuous-valued, OMI-transformed GIS values. Out of these, a
+selection has been made of variables that are not (very) collinear (using VIF)
+but include variables that are hypothesized to predict secondary woodiness. The 
+next step is to figure out which of these remaining variables actually 
+contribute to a generalized linear model to predict secondary woodiness. Here we
+do this using a function defined in the '../R' folder:
+
+```{r phyloglmstep}
+library(phylolm)
+source('../R/phyloglmstep.R')
+
+# the remaining variables after guided VIF collinearity correction
+woody_formula_24a <- woody ~ Aspect + BulkDensity + ClayPercentage + 
+    monthCountByTemp10 + PETDriestQuarter + PETWettestQuarter + OrganicCarbon + 
+    PhCaCL + Slope + bio2 + bio5 + bio14 + bio15 + bio18 + bio19
+
+# And now do the call:
+phyloglmstep(woody_formula_24a, starting.formula = NULL, data=GIS_woody, 
+    phy=tree_woody, method="logistic_MPLE", direction = "forward", trace = 0,
+    btol = 100, log.alpha.bound = 8, start.beta=NULL, start.alpha=NULL, 
+    boot = 0, full.matrix = TRUE, k = 2 )
+```
+
+## Run the phyloglm
+
+With these selected variables we can now construct a model and run the phyloglm:
+
+```{r phyloglm}
+# construct the model formula
+myModel <- woody ~ 1 + monthCountByTemp10 + PETWettestQuarter + OrganicCarbon +
+    PhCaCL + Slope + bio5 + bio14
+
+# run the phyloglm
+myResult <- phyloglm(myModel, data = GIS_woody, phy = tree_woody, 
+    method = "logistic_MPLE", btol = 100, log.alpha.bound = 8)
+
+summary(myResult)
+```
+
+## Plot results
+
+To interpret the results we can make boxplots of the values for woody and non-
+woody:
+
+```{r boxplots}
+library(dplyr)
+
+GIS_filtered_non_woody <- GIS_woody %>%
+    select( woody, monthCountByTemp10, PETWettestQuarter, OrganicCarbon,
+    PhCaCL, Slope, bio5, bio14) %>%
+    subset(woody == 0)
+
+GIS_filtered_woody <- GIS_woody %>%
+    select( woody, monthCountByTemp10, PETWettestQuarter, OrganicCarbon,
+    PhCaCL, Slope, bio5, bio14) %>%
+    subset(woody == 1)
+
+boxplot(GIS_filtered_woody$monthCountByTemp10,GIS_filtered_non_woody$monthCountByTemp10,
+    main = "number of months with mean temp greater than 10 degrees C",
+    at = c(1,2),
+    names = c("secondary woody", "herbaceous"),
+    las = 2,
+    col = c("orange","red"),
+    border = "brown",
+    horizontal = TRUE,
+    notch = TRUE
+)
+
+boxplot(GIS_filtered_woody$PETWettestQuarter,GIS_filtered_non_woody$PETWettestQuarter,
+    main = "mean monthly potential evapotranspiration of wettest quarter",
+    at = c(1,2),
+    names = c("secondary woody", "herbaceous"),
+    las = 2,
+    col = c("orange","red"),
+    border = "brown",
+    horizontal = TRUE,
+    notch = TRUE
+)
+
+boxplot(GIS_filtered_woody$OrganicCarbon,GIS_filtered_non_woody$OrganicCarbon,
+    main = "soil organic carbon content",
+    at = c(1,2),
+    names = c("secondary woody", "herbaceous"),
+    las = 2,
+    col = c("orange","red"),
+    border = "brown",
+    horizontal = TRUE,
+    notch = TRUE
+)
+
+boxplot(GIS_filtered_woody$PhCaCL,GIS_filtered_non_woody$PhCaCL,
+    main = "soil pH",
+    at = c(1,2),
+    names = c("secondary woody", "herbaceous"),
+    las = 2,
+    col = c("orange","red"),
+    border = "brown",
+    horizontal = TRUE,
+    notch = TRUE
+)
+
+boxplot(GIS_filtered_woody$Slope,GIS_filtered_non_woody$Slope,
+    main = "slope",
+    at = c(1,2),
+    names = c("secondary woody", "herbaceous"),
+    las = 2,
+    col = c("orange","red"),
+    border = "brown",
+    horizontal = TRUE,
+    notch = TRUE
+)
+
+boxplot(GIS_filtered_woody$bio5,GIS_filtered_non_woody$bio5,
+    main = "Max temperature of warmest month",
+    at = c(1,2),
+    names = c("secondary woody", "herbaceous"),
+    las = 2,
+    col = c("orange","red"),
+    border = "brown",
+    horizontal = TRUE,
+    notch = TRUE
+)
+
+boxplot(GIS_filtered_woody$bio14,GIS_filtered_non_woody$bio14,
+    main = "Precipitation of driest month",
+    at = c(1,2),
+    names = c("secondary woody", "herbaceous"),
+    las = 2,
+    col = c("orange","red"),
+    border = "brown",
+    horizontal = TRUE,
+    notch = TRUE
+)
+```
